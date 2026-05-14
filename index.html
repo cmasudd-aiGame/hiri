@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Monitoreo Hiri Pro - Calidad del Aire</title>
+    <!-- Leaflet para el Mapa -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: sans-serif; margin: 20px; background: #f4f4f9; }
+        #map { height: 400px; width: 100%; border-radius: 8px; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; font-size: 1.1em; color: #333; }
+        .dato { font-size: 1.2em; font-weight: bold; color: #2c3e50; }
+        .status { font-size: 0.8em; color: #666; }
+    </style>
+</head>
+<body>
+
+    <h1>Red de Monitoreo Aire - Colegios</h1>
+    
+    <div id="map"></div>
+
+    <div id="dashboard" class="grid">
+        <!-- Las tarjetas se cargarán aquí -->
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 1. Configuración de Colegios (Completa con tu Excel)
+        const colegiosInfo = {
+            "HIRIPRO-V1": { nombre: "Colegio A", lat: -33.45, lng: -70.65 },
+            "HIRIPRO-V2": { nombre: "Colegio B", lat: -33.46, lng: -70.66 },
+            // ... agregar hasta el V10
+        };
+
+        // 2. Inicializar Mapa
+        const map = L.map('map').setView([-33.4489, -70.6693], 12); // Centrado en Santiago
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        // 3. Función para obtener datos
+        async function fetchSensorData(codigo) {
+            const url = `https://api-sensores.cmasccp.cl/listarDatosEstructuradosV2?tabla=datos&order_by=fecha_insercion&disp.id_proyecto=18&limite=1&disp.codigo_interno=${codigo}`;
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
+                return result.data.tableData[0] || null;
+            } catch (e) {
+                console.error("Error cargando " + codigo, e);
+                return null;
+            }
+        }
+
+        // 4. Renderizar Interfaz
+        async function init() {
+            const dashboard = document.getElementById('dashboard');
+            
+            for (let i = 1; i <= 10; i++) {
+                const code = `HIRIPRO-V${i}`;
+                const info = colegiosInfo[code] || { nombre: `Sensor ${code}`, lat: 0, lng: 0 };
+                const data = await fetchSensorData(code);
+
+                // Crear Marcador en Mapa
+                L.marker([info.lat, info.lng]).addTo(map)
+                    .bindPopup(`<b>${info.nombre}</b><br>${data ? 'PM2.5: ' + data.pm25 : 'Sin conexión'}`);
+
+                // Crear Tarjeta Dashboard
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <h3>${info.nombre}</h3>
+                    <p class="status">${code}</p>
+                    <div class="dato">${data ? data.pm25 + ' µg/m³' : 'N/A'}</div>
+                    <p class="status">Última actualización: ${data ? data.fecha : '---'}</p>
+                `;
+                dashboard.appendChild(card);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
