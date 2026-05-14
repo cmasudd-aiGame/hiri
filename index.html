@@ -3,60 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Calidad del Aire - Centro C+</title>
+    <title>Monitoreo Hiri Pro - Centro C+</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: sans-serif; margin: 0; background: #f4f7f9; color: #333; }
-        header { background: #003366; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
-        #map { height: 380px; width: 100%; border-bottom: 2px solid #ddd; }
-        .container { width: 98%; margin: 15px auto; }
-        
-        /* Grid de 5 columnas exactas */
-        .grid { 
-            display: grid; 
-            grid-template-columns: repeat(5, 1fr); 
-            gap: 10px; 
-        }
-
-        .card { 
-            background: white; 
-            border-radius: 4px; 
-            padding: 10px; 
-            border-top: 4px solid #ccc;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: #eceff1; }
+        header { background: #002d5a; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+        #map { height: 350px; width: 100%; border-bottom: 1px solid #ccc; }
+        .container { width: 98%; margin: 10px auto; }
+        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .card { background: white; border-radius: 4px; padding: 12px; border-top: 5px solid #bdc3c7; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .card.online { border-top-color: #27ae60; }
         .card.offline { border-top-color: #e74c3c; opacity: 0.8; }
-        
-        .card h3 { margin: 5px 0; font-size: 0.8rem; line-height: 1.2; height: 2.4em; overflow: hidden; color: #2c3e50; }
-        .id-label { font-size: 0.65rem; color: #999; font-weight: bold; text-transform: uppercase; }
-        .value { font-size: 1.8rem; font-weight: bold; display: block; margin: 5px 0; color: #333; }
-        .unit { font-size: 0.75rem; color: #7f8c8d; font-weight: normal; }
+        .card h3 { margin: 0 0 5px 0; font-size: 0.85rem; height: 2.5em; overflow: hidden; color: #34495e; }
+        .id-label { font-size: 0.65rem; color: #95a5a6; font-weight: bold; }
+        .value { font-size: 1.8rem; font-weight: bold; display: block; margin: 5px 0; color: #2c3e50; }
+        .unit { font-size: 0.8rem; color: #7f8c8d; font-weight: normal; }
         .time { font-size: 0.7rem; color: #95a5a6; border-top: 1px solid #eee; margin-top: 8px; padding-top: 5px; display: block; }
-
-        /* Ajustes para pantallas medianas y móviles */
-        @media (max-width: 1200px) { .grid { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 768px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+        @media (max-width: 1100px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 700px) { .grid { grid-template-columns: repeat(2, 1fr); } }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: bold; font-size: 1.1rem;">Red de Monitoreo Hiri Pro</div>
-    <div id="status-msg" style="font-size: 0.75rem; background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 4px;">Sincronizando datos...</div>
+    <div style="font-weight: bold;">Red de Monitoreo Aire</div>
+    <div id="status" style="font-size: 0.7rem;">Sincronizando...</div>
 </header>
 
 <div id="map"></div>
 
 <div class="container">
-    <div id="dashboard" class="grid">
-        </div>
+    <div id="dashboard" class="grid"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Configuración de Estaciones (Nombres y Coordenadas del Excel)
     const estaciones = [
         { apiId: "HIRIPRO-V6", nombre: "Colegio El Melón", lat: -32.69107, lng: -71.21198 },
         { apiId: "HIRIPRO-V1", nombre: "Escuela Agrícola Quillota", lat: -32.90599, lng: -71.27094 },
@@ -70,67 +51,49 @@
         { apiId: "HIRIPRO-082", nombre: "SSR Los Aromos", lat: -32.80933, lng: -70.96142 }
     ];
 
-    // Inicializar Mapa centrado en la zona de las escuelas
     const map = L.map('map').setView([-32.78, -70.95], 10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-        attribution: '© OpenStreetMap' 
-    }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    // Función para obtener datos de la API pasando por Proxy para evitar CORS
     async function getSensorData(code) {
         const targetUrl = `https://api-sensores.cmasccp.cl/listarDatosEstructuradosV2?tabla=datos&order_by=fecha_insercion&disp.id_proyecto=18&limite=1&disp.codigo_interno=${code}`;
+        // Usamos corsproxy.io para saltar el bloqueo que ves en tu captura
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
         try {
             const response = await fetch(proxyUrl);
             const res = await response.json();
-            // Retorna el primer registro de la tablaData
-            return res.data && res.data.tableData ? res.data.tableData[0] : null;
+            return (res.data && res.data.tableData) ? res.data.tableData[0] : null;
         } catch (error) {
-            console.error("Error consultando " + code, error);
             return null;
         }
     }
 
-    async function updateDashboard() {
+    async function update() {
         const dashboard = document.getElementById('dashboard');
-        dashboard.innerHTML = ''; // Limpiar tarjetas anteriores
-        
-        // Limpiar marcadores anteriores si fuera necesario (opcional)
+        dashboard.innerHTML = '';
         
         for (const est of estaciones) {
             const data = await getSensorData(est.apiId);
             const isOnline = !!data;
 
-            // Marcador en Mapa
-            const markerColor = isOnline ? '#27ae60' : '#c0392b';
             L.marker([est.lat, est.lng]).addTo(map)
-                .bindPopup(`<b>${est.nombre}</b><br>${isOnline ? 'PM2.5: ' + data.pm25 + ' µg/m³' : 'Desconectado'}`);
+                .bindPopup(`<b>${est.nombre}</b><br>${isOnline ? 'PM2.5: ' + data.pm25 : 'Offline'}`);
 
-            // Crear Tarjeta
             const card = document.createElement('div');
             card.className = `card ${isOnline ? 'online' : 'offline'}`;
-            
-            const valorPM = isOnline ? data.pm25 : '--';
-            const fechaHora = isOnline ? data.fecha.split(' ')[1].substring(0, 5) : 'Sin datos';
-
             card.innerHTML = `
                 <span class="id-label">${est.apiId}</span>
                 <h3>${est.nombre}</h3>
-                <span class="value">${valorPM} <span class="unit">µg/m³</span></span>
-                <span class="time">🕒 Hora: ${fechaHora} | Estado: ${isOnline ? 'Activo' : 'OFF'}</span>
+                <span class="value">${isOnline ? data.pm25 : '--'} <span class="unit">µg/m³</span></span>
+                <span class="time">🕒 ${isOnline ? data.fecha.split(' ')[1].substring(0,5) : 'Sin conexión'}</span>
             `;
             dashboard.appendChild(card);
         }
-        document.getElementById('status-msg').innerText = "Actualizado: " + new Date().toLocaleTimeString();
+        document.getElementById('status').innerText = "Sincronizado: " + new Date().toLocaleTimeString();
     }
 
-    // Ejecución inicial
-    updateDashboard();
-
-    // Refresco automático cada 5 minutos
-    setInterval(updateDashboard, 300000);
+    update();
+    setInterval(update, 300000); // Refresco cada 5 min
 </script>
-
 </body>
 </html>
