@@ -2,82 +2,103 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Monitoreo Hiri Pro - Calidad del Aire</title>
-    <!-- Leaflet para el Mapa -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoreo Hiri Pro - Red de Escuelas</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: sans-serif; margin: 20px; background: #f4f4f9; }
-        #map { height: 400px; width: 100%; border-radius: 8px; margin-bottom: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
-        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .card h3 { margin-top: 0; font-size: 1.1em; color: #333; }
-        .dato { font-size: 1.2em; font-weight: bold; color: #2c3e50; }
-        .status { font-size: 0.8em; color: #666; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; color: #333; }
+        header { background: #004a99; color: white; padding: 1rem; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        #map { height: 450px; width: 100%; z-index: 1; }
+        .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid #ccc; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-5px); }
+        .card.online { border-left-color: #2ecc71; }
+        .card.offline { border-left-color: #e74c3c; }
+        .card h3 { margin: 0 0 10px 0; font-size: 1.1rem; color: #004a99; }
+        .value { font-size: 2rem; font-weight: bold; display: block; margin: 10px 0; }
+        .unit { font-size: 0.9rem; color: #666; font-weight: normal; }
+        .meta { font-size: 0.85rem; color: #888; }
+        .loading { text-align: center; padding: 50px; font-style: italic; }
     </style>
 </head>
 <body>
 
-    <h1>Red de Monitoreo Aire - Colegios</h1>
-    
-    <div id="map"></div>
+<header>
+    <h1>Monitoreo Calidad del Aire - Escuelas</h1>
+</header>
 
+<div id="map"></div>
+
+<div class="container">
     <div id="dashboard" class="grid">
-        <!-- Las tarjetas se cargarán aquí -->
+        <div class="loading">Cargando datos de las estaciones...</div>
     </div>
+</div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        // 1. Configuración de Colegios (Completa con tu Excel)
-        const colegiosInfo = {
-            "HIRIPRO-V1": { nombre: "Colegio A", lat: -33.45, lng: -70.65 },
-            "HIRIPRO-V2": { nombre: "Colegio B", lat: -33.46, lng: -70.66 },
-            // ... agregar hasta el V10
-        };
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Datos obtenidos del Excel
+    const estaciones = [
+        { id: "HIRIPRO-V1", nombre: "Escuela Paso Nevado", lat: -35.789182, lng: -70.929845 },
+        { id: "HIRIPRO-V2", nombre: "Escuela Los Bajos", lat: -35.53982, lng: -71.49303 },
+        { id: "HIRIPRO-V3", nombre: "Escuela de Lenguaje", lat: -35.5492, lng: -71.49122 },
+        { id: "HIRIPRO-V4", nombre: "Colegio San Clemente Entre Ríos", lat: -35.53816, lng: -71.48782 },
+        { id: "HIRIPRO-V5", nombre: "Escuela de Arte y Cultura", lat: -35.54152, lng: -71.49479 },
+        { id: "HIRIPRO-V6", nombre: "Escuela Aurora de Chile", lat: -35.54309, lng: -71.48831 },
+        { id: "HIRIPRO-V7", nombre: "Escuela Paula Jaraquemada", lat: -35.53123, lng: -71.50346 },
+        { id: "HIRIPRO-V8", nombre: "Escuela Ramadillas", lat: -35.58988, lng: -71.43981 },
+        { id: "HIRIPRO-V9", nombre: "Escuela El Colorado", lat: -35.61741, lng: -71.32832 },
+        { id: "HIRIPRO-V10", nombre: "Escuela El Boldo", lat: -35.53032, lng: -71.53239 }
+    ];
 
-        // 2. Inicializar Mapa
-        const map = L.map('map').setView([-33.4489, -70.6693], 12); // Centrado en Santiago
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    const map = L.map('map').setView([-35.55, -71.4], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
 
-        // 3. Función para obtener datos
-        async function fetchSensorData(codigo) {
-            const url = `https://api-sensores.cmasccp.cl/listarDatosEstructuradosV2?tabla=datos&order_by=fecha_insercion&disp.id_proyecto=18&limite=1&disp.codigo_interno=${codigo}`;
-            try {
-                const response = await fetch(url);
-                const result = await response.json();
-                return result.data.tableData[0] || null;
-            } catch (e) {
-                console.error("Error cargando " + codigo, e);
-                return null;
-            }
+    async function fetchData(code) {
+        const url = `https://api-sensores.cmasccp.cl/listarDatosEstructuradosV2?tabla=datos&order_by=fecha_insercion&disp.id_proyecto=18&limite=1&disp.codigo_interno=${code}`;
+        try {
+            const response = await fetch(url);
+            const json = await response.json();
+            return json.data.tableData[0] || null;
+        } catch (e) {
+            return null;
         }
+    }
 
-        // 4. Renderizar Interfaz
-        async function init() {
-            const dashboard = document.getElementById('dashboard');
+    async function updateDashboard() {
+        const dashboard = document.getElementById('dashboard');
+        dashboard.innerHTML = ''; 
+
+        for (const est of estaciones) {
+            const data = await fetchData(est.id);
+            const isOnline = data !== null;
             
-            for (let i = 1; i <= 10; i++) {
-                const code = `HIRIPRO-V${i}`;
-                const info = colegiosInfo[code] || { nombre: `Sensor ${code}`, lat: 0, lng: 0 };
-                const data = await fetchSensorData(code);
+            // Marcador en Mapa
+            const color = isOnline ? 'green' : 'gray';
+            const marker = L.marker([est.lat, est.lng]).addTo(map);
+            marker.bindPopup(`<b>${est.nombre}</b><br>${isOnline ? 'PM2.5: ' + data.pm25 : 'Desconectado'}`);
 
-                // Crear Marcador en Mapa
-                L.marker([info.lat, info.lng]).addTo(map)
-                    .bindPopup(`<b>${info.nombre}</b><br>${data ? 'PM2.5: ' + data.pm25 : 'Sin conexión'}`);
-
-                // Crear Tarjeta Dashboard
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `
-                    <h3>${info.nombre}</h3>
-                    <p class="status">${code}</p>
-                    <div class="dato">${data ? data.pm25 + ' µg/m³' : 'N/A'}</div>
-                    <p class="status">Última actualización: ${data ? data.fecha : '---'}</p>
-                `;
-                dashboard.appendChild(card);
-            }
+            // Tarjeta
+            const card = document.createElement('div');
+            card.className = `card ${isOnline ? 'online' : 'offline'}`;
+            
+            card.innerHTML = `
+                <h3>${est.nombre}</h3>
+                <span class="meta">${est.id}</span>
+                <span class="value">
+                    ${isOnline ? data.pm25 : '--'} <span class="unit">µg/m³ (PM2.5)</span>
+                </span>
+                <span class="meta">⏱ ${isOnline ? data.fecha : 'Sin datos recientes'}</span>
+            `;
+            dashboard.appendChild(card);
         }
+    }
 
-        init();
-    </script>
+    updateDashboard();
+</script>
+
 </body>
 </html>
