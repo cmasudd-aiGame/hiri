@@ -2,24 +2,24 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard Aire - Centro C+</title>
+    <title>Hiri Pro Dashboard - Centro C+</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f4f8; color: #2c3e50; }
-        header { background: #003366; color: white; padding: 12px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        #map { height: 350px; width: 100%; border-bottom: 2px solid #ddd; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: #f0f2f5; color: #333; }
+        header { background: #003366; color: white; padding: 15px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        #map { height: 350px; width: 100%; border-bottom: 2px solid #ccc; }
         .container { width: 98%; margin: 15px auto; }
         .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-        .card { background: white; border-radius: 8px; padding: 15px; border-top: 5px solid #bdc3c7; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .card { background: white; border-radius: 8px; padding: 12px; border-top: 5px solid #bdc3c7; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .card.online { border-top-color: #27ae60; }
         .card.offline { border-top-color: #e74c3c; }
-        .card h3 { margin: 0 0 8px 0; font-size: 0.9rem; color: #003366; height: 2.4em; overflow: hidden; line-height: 1.2; }
-        .id-label { font-size: 0.65rem; color: #999; font-weight: bold; margin-bottom: 5px; display: block; }
-        .value-box { text-align: center; margin: 10px 0; }
-        .pm-value { font-size: 2.2rem; font-weight: bold; color: #333; }
-        .unit { font-size: 0.8rem; color: #7f8c8d; }
-        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.75rem; background: #f8f9fa; padding: 8px; border-radius: 5px; }
-        .footer { font-size: 0.7rem; color: #95a5a6; margin-top: 12px; border-top: 1px solid #eee; padding-top: 8px; text-align: center; }
+        .card h3 { margin: 0 0 5px 0; font-size: 0.85rem; color: #003366; height: 2.2em; overflow: hidden; }
+        .id-label { font-size: 0.6rem; color: #999; font-weight: bold; }
+        .value-box { text-align: center; padding: 5px 0; }
+        .pm-num { font-size: 2.2rem; font-weight: bold; color: #1a1a1a; }
+        .unit { font-size: 0.7rem; color: #7f8c8d; }
+        .data-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 8px; font-size: 0.7rem; background: #f8f9fa; padding: 6px; border-radius: 4px; }
+        .footer { font-size: 0.65rem; color: #95a5a6; margin-top: 10px; border-top: 1px solid #eee; padding-top: 5px; text-align: center; }
         @media (max-width: 1200px) { .grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 800px) { .grid { grid-template-columns: repeat(2, 1fr); } }
     </style>
@@ -27,8 +27,8 @@
 <body>
 
 <header>
-    <h2 style="margin:0">Red de Monitoreo Calidad del Aire</h2>
-    <div id="status" style="font-size: 0.8rem; margin-top:5px;">Sincronizando con servidor...</div>
+    <h2 style="margin:0">Red de Monitoreo Aire Centro C+</h2>
+    <div id="status" style="font-size: 0.75rem; margin-top: 5px;">Conectando con api-sensores.cmasccp.cl...</div>
 </header>
 
 <div id="map"></div>
@@ -39,79 +39,81 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Configuración de estaciones actualizada con la nueva lógica de IDs
+    // Configuración de estaciones con los IDs limpios que usa el repo de AleReb
     const estaciones = [
-        { id: "HIRIPRO-V6", nombre: "Colegio El Melón", lat: -32.69107, lng: -71.21198 },
         { id: "HIRIPRO-V1", nombre: "Escuela Agrícola Quillota", lat: -32.90599, lng: -71.27094 },
-        { id: "HIRIPRO-80", nombre: "Estación Las Coimas", lat: -32.69609, lng: -70.7329 },
-        { id: "HIRIPRO-V4", nombre: "Escuela Carolina Ocampo", lat: -32.72095, lng: -70.77361 },
         { id: "HIRIPRO-V2", nombre: "Escuela Carmela Carvajal", lat: -32.78918, lng: -70.67814 },
-        { id: "HIRIPRO-V7", nombre: "Escuela Viña Errázuriz", lat: -32.79682, lng: -70.82648 },
-        { id: "HIRIPRO-10", nombre: "Escuela Santa Margarita", lat: -32.77423, lng: -70.93392 },
         { id: "HIRIPRO-V3", nombre: "Escuela Básica Las Vegas", lat: -32.84062, lng: -70.99996 },
+        { id: "HIRIPRO-V4", nombre: "Escuela Carolina Ocampo", lat: -32.72095, lng: -70.77361 },
         { id: "HIRIPRO-V5", nombre: "Escuela Ema Lobos", lat: -32.79173, lng: -70.87123 },
+        { id: "HIRIPRO-V6", nombre: "Colegio El Melón", lat: -32.69107, lng: -71.21198 },
+        { id: "HIRIPRO-V7", nombre: "Escuela Viña Errázuriz", lat: -32.79682, lng: -70.82648 },
+        { id: "HIRIPRO-80", nombre: "Estación Las Coimas", lat: -32.69609, lng: -70.7329 },
+        { id: "HIRIPRO-10", nombre: "Escuela Santa Margarita", lat: -32.77423, lng: -70.93392 },
         { id: "HIRIPRO-82", nombre: "SSR Los Aromos", lat: -32.80933, lng: -70.96142 }
     ];
 
     const map = L.map('map').setView([-32.78, -71.0], 10);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    // Función para limpiar números (maneja comas por puntos como en tu script de Python)
-    function cleanNum(val) {
+    function fixVal(val) {
         if (!val) return "--";
-        return parseFloat(String(val).replace(',', '.')).toFixed(1);
+        let n = parseFloat(String(val).replace(',', '.'));
+        return isNaN(n) ? "--" : n.toFixed(1);
     }
 
-    async function fetchData(code) {
-        const url = `https://api-sensores.cmasccp.cl/listarDatosEstructuradosV2?tabla=datos&disp.id_proyecto=18&disp.codigo_interno=${code}&order_by=fecha_insercion&limite=1`;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}&t=${Date.now()}`;
+    async function fetchFromApi(code) {
+        const targetUrl = `https://api-sensores.cmasccp.cl/listarDatosEstructuradosV2?tabla=datos&disp.id_proyecto=18&disp.codigo_interno=${code}&order_by=fecha_insercion&limite=1`;
+        
+        // Usamos el proxy "corsproxy.io" que es el más compatible con este tipo de APIs de sensores
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
         
         try {
-            const resp = await fetch(proxyUrl);
-            const data = await resp.json();
-            const content = JSON.parse(data.contents);
-            return (content.data && content.data.tableData) ? content.data.tableData[0] : null;
+            const response = await fetch(proxyUrl);
+            const res = await response.json();
+            return (res.data && res.data.tableData) ? res.data.tableData[0] : null;
         } catch (e) {
+            console.error("Error en sensor " + code, e);
             return null;
         }
     }
 
-    async function update() {
+    async function render() {
         const board = document.getElementById('dashboard');
         board.innerHTML = '';
-        document.getElementById('status').innerText = "Actualizando datos desde la base de datos...";
+        document.getElementById('status').innerText = "Sincronizando últimos datos...";
 
         for (const est of estaciones) {
-            const row = await fetchData(est.id);
-            const ok = !!row;
+            const data = await fetchFromApi(est.id);
+            const online = !!data;
 
             L.marker([est.lat, est.lng]).addTo(map).bindPopup(`<b>${est.nombre}</b>`);
 
             const card = document.createElement('div');
-            card.className = `card ${ok ? 'online' : 'offline'}`;
+            card.className = `card ${online ? 'online' : 'offline'}`;
             card.innerHTML = `
                 <span class="id-label">${est.id}</span>
                 <h3>${est.nombre}</h3>
                 <div class="value-box">
-                    <span class="pm-value">${ok ? cleanNum(row.pm25) : '--'}</span>
+                    <span class="pm-num">${online ? fixVal(data.pm25) : '--'}</span>
                     <span class="unit">µg/m³ PM2.5</span>
                 </div>
-                <div class="stats">
-                    <span>🌡️ ${ok ? cleanNum(row.temperatura) : '--'}°C</span>
-                    <span>💧 ${ok ? cleanNum(row.humedad) : '--'}%</span>
+                <div class="data-row">
+                    <span>🌡️ ${online ? fixVal(data.temperatura) : '--'}°C</span>
+                    <span>💧 ${online ? fixVal(data.humedad) : '--'}%</span>
                 </div>
                 <div class="footer">
-                    ${ok ? 'Último dato: ' + row.fecha.split(' ')[1].substring(0,5) : 'ESTACIÓN OFFLINE'}<br>
-                    ${ok ? row.fecha.split(' ')[0] : '---'}
+                    🕒 ${online ? data.fecha.split(' ')[1].substring(0,5) : 'OFFLINE'}<br>
+                    ${online ? data.fecha.split(' ')[0] : '---'}
                 </div>
             `;
             board.appendChild(card);
         }
-        document.getElementById('status').innerText = "Sincronizado: " + new Date().toLocaleTimeString();
+        document.getElementById('status').innerText = "Actualizado: " + new Date().toLocaleTimeString();
     }
 
-    update();
-    setInterval(update, 300000); // Refresco cada 5 minutos
+    render();
+    setInterval(render, 300000); // 5 minutos
 </script>
 </body>
 </html>
